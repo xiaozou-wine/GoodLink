@@ -31,7 +31,7 @@
 1. 打开百度网盘分享链接
 2. GoodLink 面板自动显示文件列表
 3. 点击「获取直链」，脚本会依次用每个 token 尝试
-4. 成功后复制直链到下载器（Motrix、IDM 等）
+4. 成功后复制直链到下载器，推荐使用 [Motrix Next](https://github.com/xiaozou-wine/motrix-next)
 
 ### 大文件处理
 
