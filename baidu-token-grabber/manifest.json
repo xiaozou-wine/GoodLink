@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "GoodLink 百度网盘 Token 抓取器",
+  "version": "1.0.0",
+  "description": "一键抓取百度网盘 OAuth access_token + BDUSS",
+  "permissions": [
+    "cookies",
+    "storage",
+    "downloads",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "*://*.baidu.com/*",
+    "*://openapi.baidu.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GoodLink Token 抓取器"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://openapi.baidu.com/*",
+        "*://pan.baidu.com/*",
+        "*://yun.baidu.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "incognito": "spanning"
+}
