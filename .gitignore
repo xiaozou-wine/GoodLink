@@ -1,4 +1,6 @@
 _ref/
+docs/
+test/
 *.copy.js
 *.copy copy.js
 *-copy.js
@@ -6,3 +8,5 @@ _ref/
 *-copy*.js
 userscripts/*_copy*
 userscripts/*.html
+userscripts/*user_local.js
+userscripts/TODO.md
