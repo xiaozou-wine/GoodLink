@@ -87,22 +87,7 @@ GoodLink/
 
 #### 第二步：安装脚本
 
-**方式一：直接粘贴代码**
-
-1. 点击浏览器工具栏上的 Tampermonkey 图标
-2. 选择 **添加新脚本**（或 **Create a new script**）
-3. 删除编辑器中的默认内容
-4. 打开 `userscripts/goodlink-helper.user.js` 文件，**全选** (Ctrl+A) → **复制** (Ctrl+C)
-5. 粘贴到 Tampermonkey 编辑器中 (Ctrl+V)
-6. 按 `Ctrl+S` 保存
-7. 脚本列表中出现「GoodLink 百度直链助手」表示安装成功
-
-**方式二：从文件安装**
-
-1. 在 Tampermonkey 面板中点击 **实用工具** 标签
-2. 在 **从文件导入** 区域点击 **选择文件**
-3. 选择 `userscripts/goodlink-helper.user.js`
-4. 确认安装
+从 [Releases](https://github.com/xiaozou-wine/GoodLink/releases) 下载 `goodlink-helper.user.js`，双击打开，浏览器会自动弹出 Tampermonkey 安装确认页面，点击安装即可。
 
 ### 添加账号
 
@@ -132,9 +117,16 @@ GoodLink/
 
 分享页的 sharedownload API 对超过约 50MB 的文件不返回 dlink，脚本自动走以下路径：
 
-1. 客户端协议（Pan API download）— 用首页签名直接获取
-2. 保存到个人网盘 → file.list 查找 fs_id → filemetas 获取 dlink
-3. 下载完后可点「清理网盘」删除临时文件
+1. 保存到个人网盘 → OAuth search 搜索文件 → filemetas 获取 dlink
+2. 下载完后可点「清理网盘」删除临时文件
+
+### 新版功能（v1.1.0）
+
+- **多选账号** — 勾选要使用的账号，一键批量获取直链
+- **健康检测** — 一键检测所有账号状态（OAuth + BDUSS + 封禁）
+- **Web 管理面板** — 直链管理、账号管理、日志三个 tab
+- **直链缓存** — 获取过的直链持久化保存，支持从网盘删除文件
+- **BDUSS 检测** — 自动检测 BDUSS 是否有效/匹配
 
 ### 配合下载器
 
