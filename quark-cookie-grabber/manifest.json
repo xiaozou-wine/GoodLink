@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "GoodLink 夸克网盘 Cookie 抓取器",
+  "version": "1.0.0",
+  "description": "一键抓取夸克网盘完整 Cookie（含 __puus、_UP_*、tfstk 等全部字段）",
+  "permissions": [
+    "cookies",
+    "storage",
+    "downloads",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "*://*.quark.cn/*",
+    "*://drive.quark.cn/*",
+    "*://drive-pc.quark.cn/*",
+    "*://pan.quark.cn/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GoodLink 夸克 Cookie 抓取器"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://pan.quark.cn/*",
+        "*://drive.quark.cn/*",
+        "*://drive-pc.quark.cn/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "incognito": "spanning"
+}
