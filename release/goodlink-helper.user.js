@@ -1172,7 +1172,7 @@ function renderPanel() {
           <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-export">导出 Token</button>
           <label class="gl-btn gl-btn-secondary gl-btn-sm" style="cursor:pointer;margin:0">
             导入
-            <input type="file" id="gl-import" accept=".json" style="display:none">
+            <input type="file" id="gl-import" accept=".json" multiple style="display:none">
           </label>
         </div>
         <div id="gl-add-area" style="display:none;margin-top:10px;padding:12px;background:#f8f9fa;border-radius:8px">
@@ -1646,31 +1646,40 @@ function doExport() {
 }
 
 function doImport(e) {
-  const file = e.target.files?.[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const raw = JSON.parse(reader.result);
-      const items = Array.isArray(raw) ? raw : [raw];
-      let count = 0, dup = 0, skip = 0;
-      for (const item of items) {
-        const token = item.token || item.access_token || '';
-        const name = item.name || item.account_name || item.baidu_username || '';
-        const bduss = item.bduss || '';
-        if (!token) { skip++; continue; }
-        const entry = addToken(token, name || undefined, bduss);
-        if (entry) count++; else dup++;
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  let totalCount = 0, totalDup = 0, totalSkip = 0;
+  let filesProcessed = 0;
+
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const raw = JSON.parse(reader.result);
+        const items = Array.isArray(raw) ? raw : [raw];
+        for (const item of items) {
+          const token = item.token || item.access_token || '';
+          const name = item.name || item.account_name || item.baidu_username || '';
+          const bduss = item.bduss || '';
+          if (!token) { totalSkip++; continue; }
+          const entry = addToken(token, name || undefined, bduss);
+          if (entry) totalCount++; else totalDup++;
+        }
+      } catch (err) {
+        totalSkip++;
       }
-      renderPanel();
-      const parts = [`${count} 新增`];
-      if (dup) parts.push(`${dup} 重复跳过`);
-      if (skip) parts.push(`${skip} 无效`);
-      notif(`导入完成: ${parts.join(', ')}`, 'ok');
-    } catch (err) {
-      notif(`导入失败: ${err.message}\n\n支持格式：\n1. {"access_token":"xxx","bduss":"xxx"}\n2. [{"token":"xxx","name":"xxx"}]`, 'err', 10000);
-    }
-  };
-  reader.readAsText(file); e.target.value = '';
+      filesProcessed++;
+      if (filesProcessed === files.length) {
+        renderPanel();
+        const parts = [`${totalCount} 新增`];
+        if (totalDup) parts.push(`${totalDup} 重复跳过`);
+        if (totalSkip) parts.push(`${totalSkip} 无效`);
+        notif(`导入完成 (${files.length} 个文件): ${parts.join(', ')}`, 'ok');
+      }
+    };
+    reader.readAsText(file);
+  }
+  e.target.value = '';
 }
 
 // tokenFilter: undefined=全部, number=单个index, number[]=多个index
