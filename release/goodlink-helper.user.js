@@ -398,18 +398,7 @@ function addToken(token, name, bduss) {
   const pool = getTokenPool();
   // 去重（按 token 或 BDUSS）
   if (pool.some(t => t.token === token)) return null;
-  // BDUSS 匹配 → 合并到已有条目（更新 token，补 BDUSS）
-  if (bduss) {
-    const existing = pool.find(t => t.bduss === bduss);
-    if (existing) {
-      const changes = {};
-      if (existing.token !== token) changes.token = token;
-      if (!existing.bduss) changes.bduss = bduss;
-      if (name && !existing.name.startsWith('百度账号')) changes.name = name;
-      if (Object.keys(changes).length) updateToken(existing.id, changes);
-      return null;
-    }
-  }
+  if (bduss && pool.some(t => t.bduss === bduss)) return null;
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     token,
@@ -432,29 +421,6 @@ function updateToken(id, changes) {
   const pool = getTokenPool();
   const t = pool.find(t => t.id === id);
   if (t) { Object.assign(t, changes); saveTokenPool(pool); }
-}
-
-// ==================== 直链缓存管理 ====================
-// 直链缓存：每个条目 { id, name, size, url, source, tokenName, createdAt }
-function getLinkCache() { return GM_getValue('gl_link_cache', []); }
-function saveLinkCache(cache) { GM_setValue('gl_link_cache', cache); }
-function addLinkToCache(link) {
-  const cache = getLinkCache();
-  // 去重：同 url 不重复添加
-  if (cache.some(l => l.url === link.url)) return;
-  cache.push({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-    name: link.name || '未命名',
-    size: link.size || 0,
-    url: link.url,
-    source: link.source || 'unknown',
-    tokenName: link.tokenName || '',
-    createdAt: new Date().toISOString(),
-  });
-  saveLinkCache(cache);
-}
-function removeLinkFromCache(id) {
-  saveLinkCache(getLinkCache().filter(l => l.id !== id));
 }
 
 // ==================== 百度 OAuth ====================
@@ -839,7 +805,7 @@ async function getPersonalDriveLink(savedFile, accessToken, tokenBduss) {
     // dlink 需要带 access_token 才能下载
     try { const u = new URL(dlink); u.searchParams.set('access_token', accessToken); dlink = u.toString(); } catch {}
     glLog(`直链获取成功: ${dlink.slice(0, 60)}...`);
-    return dlink;
+    return { dlink, fs_id: fsId };
   }
 
   // filemetas 失败时给详细错误
@@ -1032,56 +998,13 @@ const CSS = `
 .gl-hint{font-size:11px;color:#80868b;line-height:1.5;margin-top:6px}
 .gl-progress{height:4px;background:#e8eaed;border-radius:2px;overflow:hidden;margin:8px 0}
 .gl-progress-bar{height:100%;background:linear-gradient(90deg,#306cff,#2b4eff);transition:width .3s;border-radius:2px}
-.gl-token-card{display:flex;align-items:flex-start;gap:10px;padding:12px;margin-bottom:8px;border:1px solid #e8eaed;border-radius:10px;background:#fff;transition:all .15s}
-.gl-token-card:hover{border-color:#306cff;box-shadow:0 2px 8px rgba(48,108,255,.1)}
-.gl-token-card.selected{border-color:#306cff;background:#f0f4ff}
-.gl-token-cb{margin-top:3px;flex-shrink:0;accent-color:#306cff;width:16px;height:16px;cursor:pointer}
-.gl-token-main{flex:1;min-width:0}
-.gl-token-header{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
-.gl-token-card-name{font-weight:600;font-size:13px;color:#202124}
-.gl-health-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
-.gl-health-ok{background:#e6f4ea;color:#137333}
-.gl-health-banned{background:#fce8e6;color:#d93025}
-.gl-health-expired{background:#fef7e0;color:#b06000}
-.gl-health-unknown{background:#f1f3f4;color:#5f6368}
-.gl-token-meta{font-size:11px;color:#80868b;line-height:1.6}
-.gl-token-actions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
-.gl-select-bar{display:flex;align-items:center;gap:8px;padding:10px 0;flex-wrap:wrap}
-.gl-select-bar label{font-size:12px;color:#5f6368;cursor:pointer;display:flex;align-items:center;gap:4px}
-.gl-select-bar label input{accent-color:#306cff}
-.gl-token-run{color:#34a853;cursor:pointer;font-size:13px;opacity:.6;margin-left:4px}.gl-token-run:hover{opacity:1}
-/* 管理面板 */
-#gl-mgr-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.5);z-index:2147483646;display:flex;align-items:center;justify-content:center;animation:gl-fade-in .2s ease}
-@keyframes gl-fade-in{from{opacity:0}to{opacity:1}}
-#gl-mgr-panel{width:90vw;max-width:900px;height:85vh;background:#fff;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif}
-.gl-mgr-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:linear-gradient(135deg,#306cff,#2b4eff);color:#fff;flex-shrink:0}
-.gl-mgr-header h2{font-size:18px;font-weight:700;margin:0}
-.gl-mgr-close{font-size:26px;cursor:pointer;opacity:.8;line-height:1}.gl-mgr-close:hover{opacity:1}
-.gl-mgr-tabs{display:flex;gap:0;border-bottom:2px solid #e8eaed;flex-shrink:0;background:#f8f9fa}
-.gl-mgr-tab{padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;color:#5f6368;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
-.gl-mgr-tab:hover{color:#306cff}
-.gl-mgr-tab.active{color:#306cff;border-bottom-color:#306cff;background:#fff}
-.gl-mgr-body{flex:1;overflow-y:auto;padding:20px 24px}
-.gl-mgr-section{display:none}.gl-mgr-section.active{display:block}
-.gl-link-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;margin-bottom:6px;background:#fff}
-.gl-link-row:hover{border-color:#306cff}
-.gl-link-row-name{font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gl-link-row-size{font-size:12px;color:#80868b;flex-shrink:0}
-.gl-link-row-source{font-size:10px;padding:2px 6px;border-radius:4px;background:#e8f0fe;color:#306cff;flex-shrink:0}
-.gl-link-row-time{font-size:11px;color:#80868b;flex-shrink:0}
-.gl-link-row-actions{display:flex;gap:4px;flex-shrink:0}
-.gl-mgr-empty{text-align:center;color:#80868b;padding:40px;font-size:14px;font-style:italic}
-.gl-mgr-tools{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.gl-mgr-tools input[type=text]{padding:8px 12px;border:1px solid #dadce0;border-radius:8px;font-size:13px;flex:1;min-width:200px}
-`;  // CSS 结束
+`;
 
 // ==================== UI ====================
 let panel = null;
 let isDownloading = false;
 // 本次下载会话中保存到网盘的文件列表（用于"清理网盘"功能）
 let lastSavedFiles = [];  // [{fs_id, path, name, accessToken}]
-// 多选用：选中的 token id 集合
-const selectedTokens = new Set();
 
 function injectStyles() { const s = document.createElement('style'); s.textContent = CSS; document.head.appendChild(s); }
 
@@ -1120,41 +1043,20 @@ function renderPanel() {
     <div class="gl-body">
       <div class="gl-sec">
         <h4>百度账号 <span class="badge">${pool.length}</span></h4>
-        ${pool.length > 0 ? `
-        <div class="gl-select-bar">
-          <label><input type="checkbox" id="gl-select-all"> 全选</label>
-          <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-get-selected">获取选中</button>
-          <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-health-check">健康检测</button>
-          <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-open-mgr">管理面板</button>
-        </div>` : ''}
         <div id="gl-token-list">
           ${pool.length === 0 ? '<div class="gl-empty">还没有添加账号，请点击下方"添加百度账号"开始</div>' :
-            pool.map(t => {
-              const healthLabel = { ok: '正常', banned: '封禁', expired: '过期', unknown: '未知' };
-              const h = t.health || 'unknown';
-              return `
-              <div class="gl-token-card ${selectedTokens.has(t.id) ? 'selected' : ''}" data-id="${t.id}">
-                <input type="checkbox" class="gl-token-cb" data-id="${t.id}" ${selectedTokens.has(t.id) ? 'checked' : ''}>
-                <div class="gl-token-main">
-                  <div class="gl-token-header">
-                    <span class="gl-token-card-name">${esc(t.name)}</span>
-                    <span class="gl-health-badge gl-health-${h}">${healthLabel[h]}</span>
-                  </div>
-                  <div class="gl-token-meta">
-                    <span>${t.token.slice(0, 12)}...</span>
-                    ${t.bduss ? '<span class="gl-token-status valid" style="font-size:9px">BDUSS</span>' : ''}
-                    ${t.status === 'valid' ? '<span class="gl-token-status valid">OAuth</span>' : ''}
-                  </div>
-                  <div class="gl-token-actions">
-                    <span class="gl-token-info" data-id="${t.id}" title="查看账号信息">ℹ</span>
-                    <span class="gl-token-edit" data-id="${t.id}" title="编辑">✏</span>
-                    <span class="gl-token-run" data-id="${t.id}" title="仅用此账号获取直链">▶</span>
-                    <span class="gl-token-del" data-id="${t.id}" title="删除">&times;</span>
-                  </div>
-                </div>
+            pool.map(t => `
+              <div class="gl-token" data-id="${t.id}">
+                <span class="gl-token-name">${esc(t.name)}</span>
+                <span class="gl-token-status ${t.status}">${t.status === 'valid' ? '有效' : t.status === 'expired' ? '过期' : '未验证'}</span>
+                ${t.bduss ? '<span class="gl-token-status valid" style="font-size:9px">BDUSS</span>' : ''}
+                <span class="gl-token-time">${t.token.slice(0, 12)}...</span>
+                <span class="gl-token-info" data-id="${t.id}" title="查看账号信息">ℹ</span>
+                <span class="gl-token-edit" data-id="${t.id}" title="编辑">✏</span>
+                <span class="gl-token-del" data-id="${t.id}" title="删除">&times;</span>
               </div>
               <div class="gl-edit-area" data-edit-id="${t.id}" style="display:none"></div>
-            }).join('')}
+            `).join('')}
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
           <button class="gl-btn gl-btn-primary gl-btn-sm" id="gl-add-token">+ 添加百度账号</button>
@@ -1194,7 +1096,7 @@ function renderPanel() {
           ${isShare ? '📁 分享页' : '📂 个人网盘'} — ${location.pathname.slice(0, 50)}
         </div>
         <button class="gl-btn gl-btn-primary" id="gl-download" style="width:100%">
-          ${selectedTokens.size > 0 ? `获取直链 (${selectedTokens.size} 个选中)` : `获取直链 (全部${pool.length > 0 ? ' ' + pool.length + ' 个 token' : ''})`}
+          获取直链并下载${pool.length > 0 ? ` (${pool.length} 个 token)` : ''}
         </button>
         <div class="gl-hint">${pool.length === 0 ? '⚠️ 请先添加百度账号' : isShare ? '将依次尝试每个 token 获取分享文件直链' : '将用 token 调用 filemetas API 获取直链'}</div>
       </div>
@@ -1204,7 +1106,7 @@ function renderPanel() {
         <div id="gl-link-list"></div>
         <div style="display:flex;gap:6px;margin-top:10px">
           <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-copy-all" disabled>全部复制</button>
-
+          
           <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-clean-drive" style="display:none;color:#d93025">清理网盘</button>
         </div>
         <div id="gl-clean-area" style="display:none;margin-top:8px"></div>
@@ -1306,69 +1208,6 @@ panel.querySelectorAll('.gl-token-del').forEach(el => {
       } catch (e) {
         editArea.innerHTML = `<div class="gl-edit-form" style="color:#d93025">查询失败: ${e.message}</div>`;
       }
-    };
-  });
-
-  // === 新增事件绑定：多选和批量操作 ===
-  // 全选复选框
-  const selectAllCb = panel.querySelector('#gl-select-all');
-  if (selectAllCb) {
-    selectAllCb.onchange = () => {
-      const checked = selectAllCb.checked;
-      panel.querySelectorAll('.gl-token-cb').forEach(cb => {
-        cb.checked = checked;
-        const id = cb.dataset.id;
-        const card = cb.closest('.gl-token-card');
-        if (checked) {
-          selectedTokens.add(id);
-          if (card) card.classList.add('selected');
-        } else {
-          selectedTokens.delete(id);
-          if (card) card.classList.remove('selected');
-        }
-      });
-    };
-  }
-  // 单个复选框
-  panel.querySelectorAll('.gl-token-cb').forEach(cb => {
-    cb.onchange = () => {
-      const id = cb.dataset.id;
-      const card = cb.closest('.gl-token-card');
-      if (cb.checked) {
-        selectedTokens.add(id);
-        if (card) card.classList.add('selected');
-      } else {
-        selectedTokens.delete(id);
-        if (card) card.classList.remove('selected');
-      }
-    };
-  });
-  // 获取选中按钮
-  const getSelectedBtn = panel.querySelector('#gl-get-selected');
-  if (getSelectedBtn) {
-    getSelectedBtn.onclick = () => {
-      const pool = getTokenPool();
-      const indices = Array.from(selectedTokens).map(id => pool.findIndex(t => t.id === id)).filter(i => i >= 0);
-      if (!indices.length) { notif('请先勾选要使用的账号', 'err'); return; }
-      doDownload(indices);
-    };
-  }
-  // 健康检测按钮
-  const healthCheckBtn = panel.querySelector('#gl-health-check');
-  if (healthCheckBtn) {
-    healthCheckBtn.onclick = () => doHealthCheck();
-  }
-  // 管理面板按钮
-  const openMgrBtn = panel.querySelector('#gl-open-mgr');
-  if (openMgrBtn) {
-    openMgrBtn.onclick = () => { if (typeof openManager === 'function') openManager(); };
-  }
-  // 单账号运行按钮
-  panel.querySelectorAll('.gl-token-run').forEach(el => {
-    el.onclick = () => {
-      const pool = getTokenPool();
-      const idx = pool.findIndex(t => t.id === el.dataset.id);
-      if (idx >= 0) doDownload(idx);
     };
   });
 }
@@ -1569,54 +1408,6 @@ async function doVerifyAll() {
   notif(`验证完成: ${valid} 有效, ${expired} 过期`, valid > 0 ? 'ok' : 'err', 6000);
 }
 
-// 账号健康检测 — 用 filemetas 试探每个 token，判断 9013 封禁/9019 过期/正常
-async function doHealthCheck() {
-  const pool = getTokenPool();
-  if (!pool.length) { notif('没有账号可检测', 'err'); return; }
-  glLog(`开始健康检测: ${pool.length} 个账号`);
-  notif(`正在检测 ${pool.length} 个账号健康状态...`, 'info', 15000);
-
-  let ok = 0, banned = 0, expired = 0, failed = 0;
-  // 用一个已知不存在的 fs_id 试探（不会影响真实文件）
-  const probeFsId = '99999999999999999';
-
-  for (let i = 0; i < pool.length; i++) {
-    const t = pool[i];
-    try {
-      const res = await gmFetch(
-        `https://pan.baidu.com/rest/2.0/xpan/multimedia?method=filemetas&dlink=1&fsids=${encodeURIComponent(JSON.stringify([probeFsId]))}&access_token=${t.token}`,
-        'GET', { 'Origin': 'https://pan.baidu.com', 'Referer': 'https://pan.baidu.com/' }, undefined, true
-      );
-      const errno = res?.errno;
-      if (errno === 0 || errno === -6) {
-        // 0=成功（虽然是假fs_id但说明token有效）, -6=无权限（也是有效token）
-        updateToken(t.id, { health: 'ok' });
-        ok++;
-        glLog(`健康检测 ${t.name}: 正常 (errno=${errno})`);
-      } else if (errno === 9013) {
-        updateToken(t.id, { health: 'banned' });
-        banned++;
-        glLog(`健康检测 ${t.name}: 被封禁 (errno=9013 hit black uid)`, 'err');
-      } else if (errno === 9019) {
-        updateToken(t.id, { health: 'expired' });
-        expired++;
-        glLog(`健康检测 ${t.name}: Token 过期 (errno=9019)`, 'err');
-      } else {
-        updateToken(t.id, { health: 'unknown' });
-        failed++;
-        glLog(`健康检测 ${t.name}: 未知状态 errno=${errno}`);
-      }
-    } catch (e) {
-      updateToken(t.id, { health: 'unknown' });
-      failed++;
-      glLog(`健康检测 ${t.name}: 请求失败 ${e.message}`, 'err');
-    }
-    await sleep(500);
-  }
-  renderPanel();
-  notif(`健康检测完成: ${ok} 正常, ${banned} 被封, ${expired} 过期, ${failed} 未知`, banned > 0 ? 'err' : 'ok', 8000);
-}
-
 function doExport() {
   const pool = getTokenPool();
   if (!pool.length) { notif('没有可导出的 token', 'err'); return; }
@@ -1638,45 +1429,27 @@ function doImport(e) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const raw = JSON.parse(reader.result);
-      const items = Array.isArray(raw) ? raw : [raw];
-      let count = 0, dup = 0, skip = 0;
-      for (const item of items) {
-        const token = item.token || item.access_token || '';
-        const name = item.name || item.account_name || item.baidu_username || '';
-        const bduss = item.bduss || '';
-        if (!token) { skip++; continue; }
-        const entry = addToken(token, name || undefined, bduss);
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error('JSON 格式错误：期望数组');
+      let count = 0, dup = 0;
+      for (const item of data) {
+        if (!item.token) continue;
+        const entry = addToken(item.token, item.name, item.bduss || '');
         if (entry) count++; else dup++;
       }
       renderPanel();
-      const parts = [`${count} 新增`];
-      if (dup) parts.push(`${dup} 重复跳过`);
-      if (skip) parts.push(`${skip} 无效`);
-      notif(`导入完成: ${parts.join(', ')}`, 'ok');
+      notif(`导入完成: ${count} 新增, ${dup} 重复跳过`, 'ok');
     } catch (err) {
-      notif(`导入失败: ${err.message}\n\n支持格式：\n1. {"access_token":"xxx","bduss":"xxx"}\n2. [{"token":"xxx","name":"xxx"}]`, 'err', 10000);
+      notif(`导入失败: ${err.message}\n\n请确保 JSON 文件格式正确：\n[{"name":"账号名","token":"xxx"}]`, 'err', 10000);
     }
   };
   reader.readAsText(file); e.target.value = '';
 }
 
-// tokenFilter: undefined=全部, number=单个index, number[]=多个index
-async function doDownload(tokenFilter) {
+async function doDownload() {
   const pool = getTokenPool();
-  let tokensToTry;
-  if (Array.isArray(tokenFilter)) {
-    tokensToTry = tokenFilter.map(i => pool[i]).filter(Boolean);
-  } else if (typeof tokenFilter === 'number') {
-    tokensToTry = [pool[tokenFilter]];
-  } else {
-    tokensToTry = pool;
-  }
-  const label = tokensToTry.length === 1 ? `单账号: ${tokensToTry[0]?.name}` :
-    tokenFilter === undefined ? `${pool.length} 个 token 全部` : `${tokensToTry.length} 个选中 token`;
-  glLog(`开始下载: ${label}`);
+  glLog(`开始下载: ${pool.length} 个 token`);
   if (!pool.length) { notif('请先添加百度账号\n\n点"添加百度账号"获取 OAuth 链接', 'err', 10000); return; }
-  if (!tokensToTry.length) { notif('没有选中的账号', 'err'); return; }
   if (isDownloading) return;
   isDownloading = true;
 
@@ -1713,9 +1486,9 @@ async function doDownload(tokenFilter) {
     const allLinks = [];
     let lastError = '';
 
-    for (let ti = 0; ti < tokensToTry.length; ti++) {
-      const token = tokensToTry[ti];
-      btn.innerHTML = `<span id="gl-spinner"></span> ${tokensToTry.length > 1 ? `token ${ti + 1}/${tokensToTry.length}: ` : ''}${token.name}...`;
+    for (let ti = 0; ti < pool.length; ti++) {
+      const token = pool[ti];
+      btn.innerHTML = `<span id="gl-spinner"></span> token ${ti + 1}/${pool.length}: ${token.name}...`;
 
       // 验证 OAuth 账号信息
       try {
@@ -1736,7 +1509,7 @@ async function doDownload(tokenFilter) {
       linkList.appendChild(item);
 
       try {
-        glLog(`尝试 token ${ti+1}/${tokensToTry.length}: ${token.name} (${token.token.slice(0,10)}...)`);
+        glLog(`尝试 token ${ti+1}/${pool.length}: ${token.name} (${token.token.slice(0,10)}...)`);
         btn.innerHTML = `<span id="gl-spinner"></span> ${token.name}: 获取中...`;
 
         let okLinks = [];
@@ -1752,7 +1525,6 @@ async function doDownload(tokenFilter) {
             for (const link of links) {
               if (link.url) {
                 okLinks.push(link);
-                addLinkToCache({ name: link.name, size: link.size, url: link.url, source: 'sharedownload', tokenName: token.name });
               } else if (link.error?.includes('过大')) {
                 // 大文件：尝试客户端协议获取直链
                 const origFile = info.files.find(f => f.name === link.name);
@@ -1765,9 +1537,8 @@ async function doDownload(tokenFilter) {
                     glLog(`尝试 Pan API download: fs_id=${origFile.fs_id}`);
                     const panLinks = await clientPanDownload([origFile.fs_id]);
                     if (panLinks?.[0]?.dlink) {
-                      glLog('Pan API 获取直链成功!');
+                      glLog(`Pan API 获取直链成功!`);
                       okLinks.push({ name: link.name, size: link.size, url: panLinks[0].dlink });
-                      addLinkToCache({ name: link.name, size: link.size, url: panLinks[0].dlink, source: 'pan_api', tokenName: token.name });
                       continue;
                     }
                   }
@@ -1794,8 +1565,10 @@ async function doDownload(tokenFilter) {
                     btn.innerHTML = `<span id="gl-spinner"></span> ${token.name}: 获取直链...`;
                     let dlink = null;
                     // 优先用 OAuth + filemetas 获取直链（稳定可靠）
-                    dlink = await getPersonalDriveLink(savedFile, token.token, token.bduss);
+                    const linkResult = await getPersonalDriveLink(savedFile, token.token, token.bduss);
                     // 降级：locatedownload（BDUSS 签名，目前签名有问题）
+                    dlink = linkResult?.dlink || null;
+                    const driveFsId = linkResult?.fs_id || null;
                     if (!dlink && token.bduss) {
                       try {
                         const urls = await clientLocateDownload(savedFile.path, token.bduss, 0);
@@ -1809,11 +1582,10 @@ async function doDownload(tokenFilter) {
                     }
                       if (dlink) {
                       okLinks.push({ name: link.name, size: link.size, url: dlink, bduss: token.bduss || '' });
-                      addLinkToCache({ name: link.name, size: link.size, url: dlink, source: "filemetas", tokenName: token.name });
                       // 记录已保存到网盘的文件（用于后续"清理网盘"）
                       if (savedFile?.fs_id) {
-                        lastSavedFiles.push({ fs_id: savedFile.fs_id, path: savedFile.path, name: link.name, accessToken: token.token });
-                        glLog(`记录待清理文件: ${link.name} fs_id=${savedFile.fs_id} path=${savedFile.path}`);
+                        lastSavedFiles.push({ fs_id: driveFsId || savedFile.fs_id, path: savedFile.path, name: link.name, accessToken: token.token });
+                        glLog(`记录待清理文件: ${link.name} fs_id=${driveFsId || savedFile.fs_id} path=${savedFile.path}`);
                       }
                       continue;
                     }
@@ -1871,7 +1643,7 @@ async function doDownload(tokenFilter) {
         item.innerHTML = `<span class="gl-link-status">❌</span><span class="gl-link-name">${esc(token.name)}</span><div class="gl-link-err-text">${esc(e.message)}</div>`;
       }
 
-      if (ti < tokensToTry.length - 1) await sleep(3000);
+      if (ti < pool.length - 1) await sleep(3000);
     }
 
     // 4. 汇总
@@ -1903,7 +1675,7 @@ async function doDownload(tokenFilter) {
         glLog(`有 ${lastSavedFiles.length} 个文件保存在网盘中，下载完成后可清理`);
       }
     } else {
-      throw new Error(`所有 ${tokensToTry.length} 个 token 均获取失败\n\n最后一个错误: ${lastError}`);
+      throw new Error(`所有 ${pool.length} 个 token 均获取失败\n\n最后一个错误: ${lastError}`);
     }
   } catch (e) {
     notif(e.message, 'err', 15000);
@@ -1912,441 +1684,6 @@ async function doDownload(tokenFilter) {
     btn.disabled = false; btn.textContent = '获取直链并下载';
   }
 }
-
-
-// ==================== 管理面板 (openManager) ====================
-// 全屏 overlay 管理面板，包含 3 个标签页：直链管理、账号管理、日志
-
-// 来源 badge 颜色映射
-const SOURCE_BADGE_COLORS = {
-  sharedownload: { bg: '#e8f0fe', color: '#306cff' },  // 蓝色
-  pan_api: { bg: '#e6f4ea', color: '#137333' },        // 绿色
-  filemetas: { bg: '#f3e8fd', color: '#7c3aed' },      // 紫色
-  unknown: { bg: '#f1f3f4', color: '#5f6368' },        // 灰色
-};
-
-// 直链管理标签页 - 搜索、复制、删除、清空
-function renderLinksTab(container) {
-  const cache = getLinkCache();
-
-  // 构建链接行 HTML
-  let rowsHtml = '';
-  if (cache.length === 0) {
-    rowsHtml = '<div class="gl-mgr-empty">暂无缓存直链</div>';
-  } else {
-    for (const link of cache) {
-      const badge = SOURCE_BADGE_COLORS[link.source] || SOURCE_BADGE_COLORS.unknown;
-      const timeStr = link.createdAt ? new Date(link.createdAt).toLocaleString() : '-';
-      rowsHtml += `
-        <div class="gl-link-row" data-id="${link.id}" data-name="${esc(link.name).toLowerCase()}" data-source="${link.source}">
-          <span class="gl-link-row-name" title="${esc(link.name)}">${esc(link.name)}</span>
-          <span class="gl-link-row-size">${formatSize(link.size)}</span>
-          <span class="gl-link-row-source" style="background:${badge.bg};color:${badge.color}">${esc(link.source)}</span>
-          <span class="gl-link-row-time">${timeStr}</span>
-          <div class="gl-link-row-actions">
-            <button class="gl-btn gl-btn-secondary gl-btn-sm gl-mgr-link-copy" data-url="${esc(link.url)}">复制</button>
-            <button class="gl-btn gl-btn-danger gl-btn-sm gl-mgr-link-del" data-id="${link.id}">删除</button>
-          </div>
-        </div>`;
-    }
-  }
-
-  // 工具栏 + 链接列表
-  container.innerHTML = `
-    <div class="gl-mgr-tools">
-      <input type="text" class="gl-mgr-link-search" placeholder="搜索文件名或来源...">
-      <button class="gl-btn gl-btn-primary gl-btn-sm gl-mgr-copy-all">全部复制</button>
-      <button class="gl-btn gl-btn-danger gl-btn-sm gl-mgr-clear-cache">清空缓存</button>
-    </div>
-    <div class="gl-mgr-link-list">${rowsHtml}</div>`;
-
-  // 搜索过滤
-  const searchInput = container.querySelector('.gl-mgr-link-search');
-  if (searchInput) {
-    searchInput.oninput = function() {
-      const keyword = searchInput.value.trim().toLowerCase();
-      container.querySelectorAll('.gl-link-row').forEach(function(row) {
-        const name = row.getAttribute('data-name') || '';
-        const source = row.getAttribute('data-source') || '';
-        row.style.display = (!keyword || name.indexOf(keyword) >= 0 || source.indexOf(keyword) >= 0) ? '' : 'none';
-      });
-    };
-  }
-
-  // 全部复制按钮
-  const copyAllBtn = container.querySelector('.gl-mgr-copy-all');
-  if (copyAllBtn) {
-    copyAllBtn.onclick = function() {
-      const urls = cache.map(function(l) { return l.url; }).join('\n');
-      if (!urls) { notif('没有可复制的直链', 'err'); return; }
-      copyText(urls);
-    };
-  }
-
-  // 清空缓存按钮
-  const clearBtn = container.querySelector('.gl-mgr-clear-cache');
-  if (clearBtn) {
-    clearBtn.onclick = function() {
-      if (!confirm('确定清空所有缓存直链？此操作不可撤销。')) return;
-      saveLinkCache([]);
-      glLog('已清空直链缓存');
-      notif('已清空直链缓存', 'ok', 2000);
-      renderLinksTab(container);
-    };
-  }
-
-  // 单个复制按钮
-  container.querySelectorAll('.gl-mgr-link-copy').forEach(function(btn) {
-    btn.onclick = function() { copyText(btn.getAttribute('data-url')); };
-  });
-
-  // 单个删除按钮
-  container.querySelectorAll('.gl-mgr-link-del').forEach(function(btn) {
-    btn.onclick = function() {
-      removeLinkFromCache(btn.getAttribute('data-id'));
-      glLog('已删除缓存直链: ' + btn.getAttribute('data-id'));
-      renderLinksTab(container);
-    };
-  });
-}
-
-// 账号管理标签页 - 账号卡片、编辑、删除、健康检测、导入导出
-function renderAccountsTab(container) {
-  const pool = getTokenPool();
-  const healthLabel = { ok: '正常', banned: '封禁', expired: '过期', unknown: '未知' };
-
-  // 构建账号卡片 HTML
-  let cardsHtml = '';
-  if (pool.length === 0) {
-    cardsHtml = '<div class="gl-mgr-empty">暂无账号，请点击"添加账号"开始</div>';
-  } else {
-    for (const t of pool) {
-      const h = t.health || 'unknown';
-      const addedStr = t.addedAt ? new Date(t.addedAt).toLocaleString() : '-';
-      const bdussStatus = t.bduss
-        ? '<span class="gl-token-status valid">已配置</span>'
-        : '<span class="gl-token-status unknown">未配置</span>';
-      let oauthStatus = '<span class="gl-token-status unknown">未知</span>';
-      if (t.status === 'valid') oauthStatus = '<span class="gl-token-status valid">有效</span>';
-      else if (t.status === 'expired') oauthStatus = '<span class="gl-token-status expired">过期</span>';
-
-      cardsHtml += `
-        <div class="gl-token-card" data-id="${t.id}">
-          <div class="gl-token-main">
-            <div class="gl-token-header">
-              <span class="gl-token-card-name">${esc(t.name)}</span>
-              <span class="gl-health-badge gl-health-${h}">${healthLabel[h] || '未知'}</span>
-            </div>
-            <div class="gl-token-meta">
-              <div>Token: ${esc(t.token.slice(0, 16))}...</div>
-              <div>BDUSS: ${bdussStatus}</div>
-              <div>OAuth: ${oauthStatus}</div>
-              <div>添加时间: ${addedStr}</div>
-            </div>
-            <div class="gl-token-actions">
-              <span class="gl-token-info gl-mgr-acc-info" data-id="${t.id}" title="查看账号信息">信息</span>
-              <span class="gl-token-edit gl-mgr-acc-edit" data-id="${t.id}" title="编辑">编辑</span>
-              <span class="gl-token-run gl-mgr-acc-health" data-id="${t.id}" title="单个健康检测">检测</span>
-              <span class="gl-token-del gl-mgr-acc-del" data-id="${t.id}" title="删除">删除</span>
-            </div>
-          </div>
-        </div>
-        <div class="gl-edit-area gl-mgr-edit-area" data-edit-id="${t.id}" style="display:none"></div>`;
-    }
-  }
-
-  container.innerHTML = `
-    <div class="gl-mgr-tools">
-      <button class="gl-btn gl-btn-primary gl-btn-sm gl-mgr-add-account">+ 添加账号</button>
-      <button class="gl-btn gl-btn-secondary gl-btn-sm gl-mgr-export-accounts">导出</button>
-      <label class="gl-btn gl-btn-secondary gl-btn-sm" style="cursor:pointer;margin:0">
-        导入<input type="file" class="gl-mgr-import-accounts" accept=".json" style="display:none">
-      </label>
-      <button class="gl-btn gl-btn-secondary gl-btn-sm gl-mgr-health-all">全部健康检测</button>
-    </div>
-    <div class="gl-mgr-account-list">${cardsHtml}</div>`;
-
-  // 添加账号按钮（关闭管理面板，打开主面板的添加区域）
-  const addBtn = container.querySelector('.gl-mgr-add-account');
-  if (addBtn) {
-    addBtn.onclick = function() {
-      const overlay = document.getElementById('gl-mgr-overlay');
-      if (overlay) overlay.remove();
-      if (!panel) createPanel();
-      doAddToken();
-    };
-  }
-
-  // 导出按钮
-  const exportBtn = container.querySelector('.gl-mgr-export-accounts');
-  if (exportBtn) { exportBtn.onclick = function() { doExport(); }; }
-
-  // 导入按钮
-  const importInput = container.querySelector('.gl-mgr-import-accounts');
-  if (importInput) {
-    importInput.onchange = function(e) {
-      doImport(e);
-      renderAccountsTab(container);
-    };
-  }
-
-  // 全部健康检测
-  const healthAllBtn = container.querySelector('.gl-mgr-health-all');
-  if (healthAllBtn) {
-    healthAllBtn.onclick = async function() {
-      await doHealthCheck();
-      renderAccountsTab(container);
-    };
-  }
-
-  // 编辑按钮
-  container.querySelectorAll('.gl-mgr-acc-edit').forEach(function(el) {
-    el.onclick = function() {
-      const id = el.getAttribute('data-id');
-      const editArea = container.querySelector('.gl-mgr-edit-area[data-edit-id="' + id + '"]');
-      if (!editArea) return;
-      if (editArea.style.display !== 'none') { editArea.style.display = 'none'; return; }
-      const t = getTokenPool().find(function(tp) { return tp.id === id; });
-      if (!t) return;
-      editArea.innerHTML = `
-        <div class="gl-edit-form">
-          <div class="gl-edit-row"><label>名称</label><input class="gl-ed-name" value="${esc(t.name)}"></div>
-          <div class="gl-edit-row"><label>OAuth Token</label><input class="gl-ed-token" value="${esc(t.token)}"></div>
-          <div class="gl-edit-row"><label>BDUSS</label><input class="gl-ed-bduss" value="${esc(t.bduss || '')}" placeholder="留空表示无 BDUSS"></div>
-          <div style="display:flex;gap:6px">
-            <button class="gl-btn gl-btn-primary gl-btn-sm gl-mgr-ed-save" data-id="${id}">保存</button>
-            <button class="gl-btn gl-btn-secondary gl-btn-sm gl-mgr-ed-cancel" data-id="${id}">取消</button>
-          </div>
-        </div>`;
-      editArea.style.display = 'block';
-      editArea.querySelector('.gl-mgr-ed-cancel').onclick = function() { editArea.style.display = 'none'; };
-      editArea.querySelector('.gl-mgr-ed-save').onclick = function() {
-        const newName = editArea.querySelector('.gl-ed-name').value.trim();
-        const newToken = editArea.querySelector('.gl-ed-token').value.trim();
-        const newBduss = editArea.querySelector('.gl-ed-bduss').value.trim();
-        if (!newToken) { notif('OAuth Token 不能为空', 'err'); return; }
-        const changes = {};
-        if (newName && newName !== t.name) changes.name = newName;
-        if (newToken !== t.token) { changes.token = newToken; changes.status = 'unknown'; }
-        if (newBduss !== (t.bduss || '')) changes.bduss = newBduss;
-        if (Object.keys(changes).length > 0) {
-          updateToken(id, changes);
-          notif('已保存', 'ok', 2000);
-        }
-        renderAccountsTab(container);
-      };
-    };
-  });
-
-  // 删除按钮
-  container.querySelectorAll('.gl-mgr-acc-del').forEach(function(el) {
-    el.onclick = function() {
-      if (!confirm('确定删除此账号？')) return;
-      removeToken(el.getAttribute('data-id'));
-      notif('已删除', 'info', 2000);
-      renderAccountsTab(container);
-    };
-  });
-
-  // 单个健康检测
-  container.querySelectorAll('.gl-mgr-acc-health').forEach(function(el) {
-    el.onclick = async function() {
-      const id = el.getAttribute('data-id');
-      const t = getTokenPool().find(function(tp) { return tp.id === id; });
-      if (!t) return;
-      notif('正在检测 ' + t.name + '...', 'info', 3000);
-      try {
-        const probeFsId = '99999999999999999';
-        const res = await gmFetch(
-          'https://pan.baidu.com/rest/2.0/xpan/multimedia?method=filemetas&dlink=1&fsids=' + encodeURIComponent(JSON.stringify([probeFsId])) + '&access_token=' + t.token,
-          'GET', { 'Origin': 'https://pan.baidu.com', 'Referer': 'https://pan.baidu.com/' }, undefined, true
-        );
-        const errno = res && res.errno;
-        if (errno === 0 || errno === -6) {
-          updateToken(t.id, { health: 'ok' });
-          glLog('健康检测 ' + t.name + ': 正常');
-        } else if (errno === 9013) {
-          updateToken(t.id, { health: 'banned' });
-          glLog('健康检测 ' + t.name + ': 被封禁 (errno=9013)', 'err');
-        } else if (errno === 9019) {
-          updateToken(t.id, { health: 'expired' });
-          glLog('健康检测 ' + t.name + ': Token 过期 (errno=9019)', 'err');
-        } else {
-          updateToken(t.id, { health: 'unknown' });
-          glLog('健康检测 ' + t.name + ': 未知状态 errno=' + errno);
-        }
-      } catch (e) {
-        updateToken(t.id, { health: 'unknown' });
-        glLog('健康检测 ' + t.name + ' 失败: ' + e.message, 'err');
-      }
-      renderAccountsTab(container);
-    };
-  });
-
-  // 查看账号信息
-  container.querySelectorAll('.gl-mgr-acc-info').forEach(function(el) {
-    el.onclick = async function() {
-      const id = el.getAttribute('data-id');
-      const editArea = container.querySelector('.gl-mgr-edit-area[data-edit-id="' + id + '"]');
-      if (!editArea) return;
-      if (editArea.style.display !== 'none') { editArea.style.display = 'none'; return; }
-      const t = getTokenPool().find(function(tp) { return tp.id === id; });
-      if (!t) return;
-      editArea.innerHTML = '<div class="gl-edit-form">查询中...</div>';
-      editArea.style.display = 'block';
-      try {
-        const res = await gmFetch('https://pan.baidu.com/rest/2.0/xpan/nas?method=uinfo&access_token=' + t.token, 'GET', {});
-        const info = (res && (res.errno === 0 || res.uk))
-          ? '<b>' + esc(res.baidu_name || '未知') + '</b> (uk=' + res.uk + ')<br>VIP类型: ' + (res.vip_type === 0 ? '普通' : 'VIP') + '<br>已用: ' + formatSize(res.used) + ' / 总: ' + formatSize(res.total)
-          : 'OAuth 无效 (errno=' + (res && res.errno) + ')';
-        editArea.innerHTML = '<div class="gl-edit-form">' + info + '<br><span style="font-size:10px;color:#80868b">Token: ' + esc(t.token.slice(0, 20)) + '...<br>BDUSS: ' + (t.bduss ? esc(t.bduss.slice(0, 20)) + '...' : '无') + '</span></div>';
-      } catch (e) {
-        editArea.innerHTML = '<div class="gl-edit-form" style="color:#d93025">查询失败: ' + esc(e.message) + '</div>';
-      }
-    };
-  });
-}
-
-// 日志标签页 - 显示全部日志、复制、导出、清空
-function renderLogsTab(container) {
-  // 构建日志行 HTML
-  let logHtml = '';
-  if (LOGS.length === 0) {
-    logHtml = '<div class="gl-mgr-empty">暂无日志</div>';
-  } else {
-    for (const l of LOGS) {
-      const levelBadge = l.level === 'err'
-        ? '<span style="background:#fce8e6;color:#d93025;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-right:4px">ERR</span>'
-        : '<span style="background:#e8f0fe;color:#306cff;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-right:4px">INFO</span>';
-      logHtml += '<div style="padding:2px 0"><span style="color:#80868b;margin-right:6px">[' + esc(l.time) + ']</span>' + levelBadge + esc(l.msg) + '</div>';
-    }
-  }
-
-  container.innerHTML = `
-    <div class="gl-mgr-tools">
-      <button class="gl-btn gl-btn-primary gl-btn-sm gl-mgr-log-copy">复制日志</button>
-      <button class="gl-btn gl-btn-secondary gl-btn-sm gl-mgr-log-export">导出日志</button>
-      <button class="gl-btn gl-btn-danger gl-btn-sm gl-mgr-log-clear">清空日志</button>
-    </div>
-    <div class="gl-mgr-log-area" style="background:#f8f9fa;border-radius:8px;padding:12px;font-size:12px;font-family:Consolas,Monaco,monospace;max-height:calc(85vh - 200px);overflow-y:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6">
-      ${logHtml}
-    </div>`;
-
-  // 自动滚动到底部
-  const logArea = container.querySelector('.gl-mgr-log-area');
-  if (logArea) logArea.scrollTop = logArea.scrollHeight;
-
-  // 复制日志
-  const copyBtn = container.querySelector('.gl-mgr-log-copy');
-  if (copyBtn) {
-    copyBtn.onclick = function() {
-      const text = LOGS.map(function(l) { return '[' + l.time + '] [' + l.level + '] ' + l.msg; }).join('\n');
-      copyText(text || '暂无日志');
-    };
-  }
-
-  // 导出日志
-  const exportBtn = container.querySelector('.gl-mgr-log-export');
-  if (exportBtn) {
-    exportBtn.onclick = function() {
-      const text = LOGS.map(function(l) { return '[' + l.time + '] [' + l.level + '] ' + l.msg; }).join('\n');
-      const blob = new Blob([text], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'goodlink_log_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.txt';
-      a.click();
-    };
-  }
-
-  // 清空日志
-  const clearBtn = container.querySelector('.gl-mgr-log-clear');
-  if (clearBtn) {
-    clearBtn.onclick = function() {
-      if (!confirm('确定清空所有日志？')) return;
-      LOGS.length = 0;
-      GM_setValue('gl_logs', []);
-      glLog('日志已清空');
-      renderLogsTab(container);
-      notif('日志已清空', 'ok', 2000);
-    };
-  }
-}
-
-// 根据 tab 名称渲染对应内容
-function renderTabContent(tabName, section) {
-  if (!section) return;
-  switch (tabName) {
-    case 'links': renderLinksTab(section); break;
-    case 'accounts': renderAccountsTab(section); break;
-    case 'logs': renderLogsTab(section); break;
-  }
-}
-
-// 主函数：打开/关闭管理面板
-function openManager() {
-  // 切换：如果 overlay 已存在则移除（关闭）
-  const existing = document.getElementById('gl-mgr-overlay');
-  if (existing) { existing.remove(); return; }
-
-  // 创建 overlay 容器
-  const overlay = document.createElement('div');
-  overlay.id = 'gl-mgr-overlay';
-
-  // 创建 panel
-  const mgrPanel = document.createElement('div');
-  mgrPanel.id = 'gl-mgr-panel';
-  mgrPanel.innerHTML = `
-    <div class="gl-mgr-header">
-      <h2>GoodLink 管理面板</h2>
-      <span class="gl-mgr-close" id="gl-mgr-close-btn">&times;</span>
-    </div>
-    <div class="gl-mgr-tabs">
-      <div class="gl-mgr-tab active" data-tab="links">直链管理</div>
-      <div class="gl-mgr-tab" data-tab="accounts">账号管理</div>
-      <div class="gl-mgr-tab" data-tab="logs">日志</div>
-    </div>
-    <div class="gl-mgr-body">
-      <div class="gl-mgr-section active" data-section="links"></div>
-      <div class="gl-mgr-section" data-section="accounts"></div>
-      <div class="gl-mgr-section" data-section="logs"></div>
-    </div>`;
-
-  overlay.appendChild(mgrPanel);
-  document.body.appendChild(overlay);
-
-  // 关闭按钮
-  document.getElementById('gl-mgr-close-btn').onclick = function() { overlay.remove(); };
-
-  // 点击 overlay 背景关闭
-  overlay.onclick = function(e) {
-    if (e.target === overlay) overlay.remove();
-  };
-
-  // Tab 切换逻辑
-  const tabs = mgrPanel.querySelectorAll('.gl-mgr-tab');
-  const sections = mgrPanel.querySelectorAll('.gl-mgr-section');
-
-  tabs.forEach(function(tab) {
-    tab.onclick = function() {
-      // 移除所有 active
-      tabs.forEach(function(t) { t.classList.remove('active'); });
-      sections.forEach(function(s) { s.classList.remove('active'); });
-      // 激活当前 tab 和对应 section
-      tab.classList.add('active');
-      const targetSection = mgrPanel.querySelector('.gl-mgr-section[data-section="' + tab.getAttribute('data-tab') + '"]');
-      if (targetSection) targetSection.classList.add('active');
-      // 渲染对应标签页内容
-      renderTabContent(tab.getAttribute('data-tab'), targetSection);
-    };
-  });
-
-  // 渲染默认标签页（直链管理）
-  const defaultSection = mgrPanel.querySelector('.gl-mgr-section[data-section="links"]');
-  if (defaultSection) renderLinksTab(defaultSection);
-}
-
-// 暴露到全局作用域，供主面板按钮通过 typeof openManager 检测
-window.openManager = openManager;
 
 // ==================== 初始化 ====================
 function init() {

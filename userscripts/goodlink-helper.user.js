@@ -398,18 +398,7 @@ function addToken(token, name, bduss) {
   const pool = getTokenPool();
   // 去重（按 token 或 BDUSS）
   if (pool.some(t => t.token === token)) return null;
-  // BDUSS 匹配 → 合并到已有条目（更新 token，补 BDUSS）
-  if (bduss) {
-    const existing = pool.find(t => t.bduss === bduss);
-    if (existing) {
-      const changes = {};
-      if (existing.token !== token) changes.token = token;
-      if (!existing.bduss) changes.bduss = bduss;
-      if (name && !existing.name.startsWith('百度账号')) changes.name = name;
-      if (Object.keys(changes).length) updateToken(existing.id, changes);
-      return null;
-    }
-  }
+  if (bduss && pool.some(t => t.bduss === bduss)) return null;
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     token,
@@ -816,7 +805,7 @@ async function getPersonalDriveLink(savedFile, accessToken, tokenBduss) {
     // dlink 需要带 access_token 才能下载
     try { const u = new URL(dlink); u.searchParams.set('access_token', accessToken); dlink = u.toString(); } catch {}
     glLog(`直链获取成功: ${dlink.slice(0, 60)}...`);
-    return dlink;
+    return { dlink, fs_id: fsId };
   }
 
   // filemetas 失败时给详细错误
@@ -1009,56 +998,13 @@ const CSS = `
 .gl-hint{font-size:11px;color:#80868b;line-height:1.5;margin-top:6px}
 .gl-progress{height:4px;background:#e8eaed;border-radius:2px;overflow:hidden;margin:8px 0}
 .gl-progress-bar{height:100%;background:linear-gradient(90deg,#306cff,#2b4eff);transition:width .3s;border-radius:2px}
-.gl-token-card{display:flex;align-items:flex-start;gap:10px;padding:12px;margin-bottom:8px;border:1px solid #e8eaed;border-radius:10px;background:#fff;transition:all .15s}
-.gl-token-card:hover{border-color:#306cff;box-shadow:0 2px 8px rgba(48,108,255,.1)}
-.gl-token-card.selected{border-color:#306cff;background:#f0f4ff}
-.gl-token-cb{margin-top:3px;flex-shrink:0;accent-color:#306cff;width:16px;height:16px;cursor:pointer}
-.gl-token-main{flex:1;min-width:0}
-.gl-token-header{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
-.gl-token-card-name{font-weight:600;font-size:13px;color:#202124}
-.gl-health-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
-.gl-health-ok{background:#e6f4ea;color:#137333}
-.gl-health-banned{background:#fce8e6;color:#d93025}
-.gl-health-expired{background:#fef7e0;color:#b06000}
-.gl-health-unknown{background:#f1f3f4;color:#5f6368}
-.gl-token-meta{font-size:11px;color:#80868b;line-height:1.6}
-.gl-token-actions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
-.gl-select-bar{display:flex;align-items:center;gap:8px;padding:10px 0;flex-wrap:wrap}
-.gl-select-bar label{font-size:12px;color:#5f6368;cursor:pointer;display:flex;align-items:center;gap:4px}
-.gl-select-bar label input{accent-color:#306cff}
-.gl-token-run{color:#34a853;cursor:pointer;font-size:13px;opacity:.6;margin-left:4px}.gl-token-run:hover{opacity:1}
-/* 管理面板 */
-#gl-mgr-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.5);z-index:2147483646;display:flex;align-items:center;justify-content:center;animation:gl-fade-in .2s ease}
-@keyframes gl-fade-in{from{opacity:0}to{opacity:1}}
-#gl-mgr-panel{width:90vw;max-width:900px;height:85vh;background:#fff;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif}
-.gl-mgr-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:linear-gradient(135deg,#306cff,#2b4eff);color:#fff;flex-shrink:0}
-.gl-mgr-header h2{font-size:18px;font-weight:700;margin:0}
-.gl-mgr-close{font-size:26px;cursor:pointer;opacity:.8;line-height:1}.gl-mgr-close:hover{opacity:1}
-.gl-mgr-tabs{display:flex;gap:0;border-bottom:2px solid #e8eaed;flex-shrink:0;background:#f8f9fa}
-.gl-mgr-tab{padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;color:#5f6368;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
-.gl-mgr-tab:hover{color:#306cff}
-.gl-mgr-tab.active{color:#306cff;border-bottom-color:#306cff;background:#fff}
-.gl-mgr-body{flex:1;overflow-y:auto;padding:20px 24px}
-.gl-mgr-section{display:none}.gl-mgr-section.active{display:block}
-.gl-link-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;margin-bottom:6px;background:#fff}
-.gl-link-row:hover{border-color:#306cff}
-.gl-link-row-name{font-weight:500;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gl-link-row-size{font-size:12px;color:#80868b;flex-shrink:0}
-.gl-link-row-source{font-size:10px;padding:2px 6px;border-radius:4px;background:#e8f0fe;color:#306cff;flex-shrink:0}
-.gl-link-row-time{font-size:11px;color:#80868b;flex-shrink:0}
-.gl-link-row-actions{display:flex;gap:4px;flex-shrink:0}
-.gl-mgr-empty{text-align:center;color:#80868b;padding:40px;font-size:14px;font-style:italic}
-.gl-mgr-tools{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-.gl-mgr-tools input[type=text]{padding:8px 12px;border:1px solid #dadce0;border-radius:8px;font-size:13px;flex:1;min-width:200px}
-`;  // CSS 结束
+`;
 
 // ==================== UI ====================
 let panel = null;
 let isDownloading = false;
 // 本次下载会话中保存到网盘的文件列表（用于"清理网盘"功能）
 let lastSavedFiles = [];  // [{fs_id, path, name, accessToken}]
-// 多选用：选中的 token id 集合
-const selectedTokens = new Set();
 
 function injectStyles() { const s = document.createElement('style'); s.textContent = CSS; document.head.appendChild(s); }
 
@@ -1160,7 +1106,7 @@ function renderPanel() {
         <div id="gl-link-list"></div>
         <div style="display:flex;gap:6px;margin-top:10px">
           <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-copy-all" disabled>全部复制</button>
-
+          
           <button class="gl-btn gl-btn-secondary gl-btn-sm" id="gl-clean-drive" style="display:none;color:#d93025">清理网盘</button>
         </div>
         <div id="gl-clean-area" style="display:none;margin-top:8px"></div>
@@ -1462,54 +1408,6 @@ async function doVerifyAll() {
   notif(`验证完成: ${valid} 有效, ${expired} 过期`, valid > 0 ? 'ok' : 'err', 6000);
 }
 
-// 账号健康检测 — 用 filemetas 试探每个 token，判断 9013 封禁/9019 过期/正常
-async function doHealthCheck() {
-  const pool = getTokenPool();
-  if (!pool.length) { notif('没有账号可检测', 'err'); return; }
-  glLog(`开始健康检测: ${pool.length} 个账号`);
-  notif(`正在检测 ${pool.length} 个账号健康状态...`, 'info', 15000);
-
-  let ok = 0, banned = 0, expired = 0, failed = 0;
-  // 用一个已知不存在的 fs_id 试探（不会影响真实文件）
-  const probeFsId = '99999999999999999';
-
-  for (let i = 0; i < pool.length; i++) {
-    const t = pool[i];
-    try {
-      const res = await gmFetch(
-        `https://pan.baidu.com/rest/2.0/xpan/multimedia?method=filemetas&dlink=1&fsids=${encodeURIComponent(JSON.stringify([probeFsId]))}&access_token=${t.token}`,
-        'GET', { 'Origin': 'https://pan.baidu.com', 'Referer': 'https://pan.baidu.com/' }, undefined, true
-      );
-      const errno = res?.errno;
-      if (errno === 0 || errno === -6) {
-        // 0=成功（虽然是假fs_id但说明token有效）, -6=无权限（也是有效token）
-        updateToken(t.id, { health: 'ok' });
-        ok++;
-        glLog(`健康检测 ${t.name}: 正常 (errno=${errno})`);
-      } else if (errno === 9013) {
-        updateToken(t.id, { health: 'banned' });
-        banned++;
-        glLog(`健康检测 ${t.name}: 被封禁 (errno=9013 hit black uid)`, 'err');
-      } else if (errno === 9019) {
-        updateToken(t.id, { health: 'expired' });
-        expired++;
-        glLog(`健康检测 ${t.name}: Token 过期 (errno=9019)`, 'err');
-      } else {
-        updateToken(t.id, { health: 'unknown' });
-        failed++;
-        glLog(`健康检测 ${t.name}: 未知状态 errno=${errno}`);
-      }
-    } catch (e) {
-      updateToken(t.id, { health: 'unknown' });
-      failed++;
-      glLog(`健康检测 ${t.name}: 请求失败 ${e.message}`, 'err');
-    }
-    await sleep(500);
-  }
-  renderPanel();
-  notif(`健康检测完成: ${ok} 正常, ${banned} 被封, ${expired} 过期, ${failed} 未知`, banned > 0 ? 'err' : 'ok', 8000);
-}
-
 function doExport() {
   const pool = getTokenPool();
   if (!pool.length) { notif('没有可导出的 token', 'err'); return; }
@@ -1531,45 +1429,27 @@ function doImport(e) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const raw = JSON.parse(reader.result);
-      const items = Array.isArray(raw) ? raw : [raw];
-      let count = 0, dup = 0, skip = 0;
-      for (const item of items) {
-        const token = item.token || item.access_token || '';
-        const name = item.name || item.account_name || item.baidu_username || '';
-        const bduss = item.bduss || '';
-        if (!token) { skip++; continue; }
-        const entry = addToken(token, name || undefined, bduss);
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error('JSON 格式错误：期望数组');
+      let count = 0, dup = 0;
+      for (const item of data) {
+        if (!item.token) continue;
+        const entry = addToken(item.token, item.name, item.bduss || '');
         if (entry) count++; else dup++;
       }
       renderPanel();
-      const parts = [`${count} 新增`];
-      if (dup) parts.push(`${dup} 重复跳过`);
-      if (skip) parts.push(`${skip} 无效`);
-      notif(`导入完成: ${parts.join(', ')}`, 'ok');
+      notif(`导入完成: ${count} 新增, ${dup} 重复跳过`, 'ok');
     } catch (err) {
-      notif(`导入失败: ${err.message}\n\n支持格式：\n1. {"access_token":"xxx","bduss":"xxx"}\n2. [{"token":"xxx","name":"xxx"}]`, 'err', 10000);
+      notif(`导入失败: ${err.message}\n\n请确保 JSON 文件格式正确：\n[{"name":"账号名","token":"xxx"}]`, 'err', 10000);
     }
   };
   reader.readAsText(file); e.target.value = '';
 }
 
-// tokenFilter: undefined=全部, number=单个index, number[]=多个index
-async function doDownload(tokenFilter) {
+async function doDownload() {
   const pool = getTokenPool();
-  let tokensToTry;
-  if (Array.isArray(tokenFilter)) {
-    tokensToTry = tokenFilter.map(i => pool[i]).filter(Boolean);
-  } else if (typeof tokenFilter === 'number') {
-    tokensToTry = [pool[tokenFilter]];
-  } else {
-    tokensToTry = pool;
-  }
-  const label = tokensToTry.length === 1 ? `单账号: ${tokensToTry[0]?.name}` :
-    tokenFilter === undefined ? `${pool.length} 个 token 全部` : `${tokensToTry.length} 个选中 token`;
-  glLog(`开始下载: ${label}`);
+  glLog(`开始下载: ${pool.length} 个 token`);
   if (!pool.length) { notif('请先添加百度账号\n\n点"添加百度账号"获取 OAuth 链接', 'err', 10000); return; }
-  if (!tokensToTry.length) { notif('没有选中的账号', 'err'); return; }
   if (isDownloading) return;
   isDownloading = true;
 
@@ -1606,9 +1486,9 @@ async function doDownload(tokenFilter) {
     const allLinks = [];
     let lastError = '';
 
-    for (let ti = 0; ti < tokensToTry.length; ti++) {
-      const token = tokensToTry[ti];
-      btn.innerHTML = `<span id="gl-spinner"></span> ${tokensToTry.length > 1 ? `token ${ti + 1}/${tokensToTry.length}: ` : ''}${token.name}...`;
+    for (let ti = 0; ti < pool.length; ti++) {
+      const token = pool[ti];
+      btn.innerHTML = `<span id="gl-spinner"></span> token ${ti + 1}/${pool.length}: ${token.name}...`;
 
       // 验证 OAuth 账号信息
       try {
@@ -1629,7 +1509,7 @@ async function doDownload(tokenFilter) {
       linkList.appendChild(item);
 
       try {
-        glLog(`尝试 token ${ti+1}/${tokensToTry.length}: ${token.name} (${token.token.slice(0,10)}...)`);
+        glLog(`尝试 token ${ti+1}/${pool.length}: ${token.name} (${token.token.slice(0,10)}...)`);
         btn.innerHTML = `<span id="gl-spinner"></span> ${token.name}: 获取中...`;
 
         let okLinks = [];
@@ -1645,7 +1525,6 @@ async function doDownload(tokenFilter) {
             for (const link of links) {
               if (link.url) {
                 okLinks.push(link);
-                addLinkToCache({ name: link.name, size: link.size, url: link.url, source: 'sharedownload', tokenName: token.name });
               } else if (link.error?.includes('过大')) {
                 // 大文件：尝试客户端协议获取直链
                 const origFile = info.files.find(f => f.name === link.name);
@@ -1658,9 +1537,8 @@ async function doDownload(tokenFilter) {
                     glLog(`尝试 Pan API download: fs_id=${origFile.fs_id}`);
                     const panLinks = await clientPanDownload([origFile.fs_id]);
                     if (panLinks?.[0]?.dlink) {
-                      glLog('Pan API 获取直链成功!');
+                      glLog(`Pan API 获取直链成功!`);
                       okLinks.push({ name: link.name, size: link.size, url: panLinks[0].dlink });
-                      addLinkToCache({ name: link.name, size: link.size, url: panLinks[0].dlink, source: 'pan_api', tokenName: token.name });
                       continue;
                     }
                   }
@@ -1687,8 +1565,10 @@ async function doDownload(tokenFilter) {
                     btn.innerHTML = `<span id="gl-spinner"></span> ${token.name}: 获取直链...`;
                     let dlink = null;
                     // 优先用 OAuth + filemetas 获取直链（稳定可靠）
-                    dlink = await getPersonalDriveLink(savedFile, token.token, token.bduss);
+                    const linkResult = await getPersonalDriveLink(savedFile, token.token, token.bduss);
                     // 降级：locatedownload（BDUSS 签名，目前签名有问题）
+                    dlink = linkResult?.dlink || null;
+                    const driveFsId = linkResult?.fs_id || null;
                     if (!dlink && token.bduss) {
                       try {
                         const urls = await clientLocateDownload(savedFile.path, token.bduss, 0);
@@ -1702,11 +1582,10 @@ async function doDownload(tokenFilter) {
                     }
                       if (dlink) {
                       okLinks.push({ name: link.name, size: link.size, url: dlink, bduss: token.bduss || '' });
-                      addLinkToCache({ name: link.name, size: link.size, url: dlink, source: "filemetas", tokenName: token.name });
                       // 记录已保存到网盘的文件（用于后续"清理网盘"）
                       if (savedFile?.fs_id) {
-                        lastSavedFiles.push({ fs_id: savedFile.fs_id, path: savedFile.path, name: link.name, accessToken: token.token });
-                        glLog(`记录待清理文件: ${link.name} fs_id=${savedFile.fs_id} path=${savedFile.path}`);
+                        lastSavedFiles.push({ fs_id: driveFsId || savedFile.fs_id, path: savedFile.path, name: link.name, accessToken: token.token });
+                        glLog(`记录待清理文件: ${link.name} fs_id=${driveFsId || savedFile.fs_id} path=${savedFile.path}`);
                       }
                       continue;
                     }
@@ -1764,7 +1643,7 @@ async function doDownload(tokenFilter) {
         item.innerHTML = `<span class="gl-link-status">❌</span><span class="gl-link-name">${esc(token.name)}</span><div class="gl-link-err-text">${esc(e.message)}</div>`;
       }
 
-      if (ti < tokensToTry.length - 1) await sleep(3000);
+      if (ti < pool.length - 1) await sleep(3000);
     }
 
     // 4. 汇总
@@ -1796,7 +1675,7 @@ async function doDownload(tokenFilter) {
         glLog(`有 ${lastSavedFiles.length} 个文件保存在网盘中，下载完成后可清理`);
       }
     } else {
-      throw new Error(`所有 ${tokensToTry.length} 个 token 均获取失败\n\n最后一个错误: ${lastError}`);
+      throw new Error(`所有 ${pool.length} 个 token 均获取失败\n\n最后一个错误: ${lastError}`);
     }
   } catch (e) {
     notif(e.message, 'err', 15000);
