@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "GoodLink 夸克直链助手",
+  "version": "2.0.0",
+  "description": "无痕模式自动抓取夸克完整 Cookie，并在夸克页面获取直链、发送到 Motrix/aria2。",
+  "permissions": [
+    "cookies",
+    "storage",
+    "downloads",
+    "tabs",
+    "webNavigation",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*.quark.cn/*",
+    "*://drive.quark.cn/*",
+    "*://drive-pc.quark.cn/*",
+    "*://pan.quark.cn/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GoodLink 夸克直链助手"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://pan.quark.cn/*",
+        "*://drive.quark.cn/*",
+        "*://drive-pc.quark.cn/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-extractor.js"],
+      "matches": ["*://pan.quark.cn/*", "*://drive.quark.cn/*", "*://drive-pc.quark.cn/*"]
+    }
+  ],
+  "incognito": "spanning"
+}

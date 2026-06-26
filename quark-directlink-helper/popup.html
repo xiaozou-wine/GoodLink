@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoodLink 夸克直链助手</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 380px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f8f9fa; color: #202124; }
+
+.header { background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: #fff; padding: 20px 24px; text-align: center; }
+.header h1 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.header p { font-size: 12px; opacity: .85; }
+
+.container { padding: 16px 20px; max-height: 500px; overflow-y: auto; }
+
+.card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.card h2 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #333; }
+
+.btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; text-align: center; }
+.btn-primary { background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: #fff; }
+.btn-primary:hover { box-shadow: 0 4px 12px rgba(108,92,231,.3); transform: translateY(-1px); }
+.btn-secondary { background: #f0edff; color: #6c5ce7; margin-top: 8px; font-size: 12px; padding: 10px; }
+.btn-secondary:hover { background: #e4e0fa; }
+.btn-sm { padding: 8px 12px; font-size: 12px; width: auto; display: inline-block; }
+
+.setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.setting-row label { font-size: 12px; color: #5f6368; white-space: nowrap; }
+.setting-row input { flex: 1; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 12px; }
+.setting-row input:focus { outline: none; border-color: #6c5ce7; }
+
+.status { text-align: center; padding: 16px 0; }
+.spinner { width: 32px; height: 32px; border: 3px solid #e8eaed; border-top-color: #6c5ce7; border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.status-text { font-size: 13px; color: #5f6368; line-height: 1.6; }
+
+.result-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #f1f3f4; font-size: 12px; }
+.result-item:last-child { border-bottom: none; }
+.result-label { color: #5f6368; min-width: 70px; }
+.result-value { font-family: 'Cascadia Code', 'Consolas', monospace; color: #6c5ce7; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.result-value:hover { text-decoration: underline; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.tag-success { background: #e6f4ea; color: #137333; }
+.tag-warning { background: #fef7e0; color: #b06000; }
+.tag-error { background: #fce8e6; color: #c5221f; }
+
+.history-item { padding: 8px 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+.history-name { font-weight: 600; }
+
+.toast { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 6px; background: #323232; color: #fff; font-size: 12px; z-index: 999; animation: fadeIn .2s; }
+@keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(-4px); } }
+
+.badge { background: #f0edff; color: #6c5ce7; padding: 2px 8px; border-radius: 8px; font-size: 11px; margin-left: 4px; }
+
+.cookie-detail { font-size: 11px; color: #666; background: #f8f9fa; border-radius: 6px; padding: 8px 10px; margin-top: 8px; word-break: break-all; line-height: 1.6; max-height: 100px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>GoodLink 夸克直链助手</h1>
+  <p>自动完整 Cookie + 直链获取 + Motrix 发送</p>
+</div>
+
+<div class="container">
+  <!-- 无痕权限提示 -->
+  <div id="incognito-warning" style="display:none">
+    <div class="card" style="border-left:4px solid #ff9800;background:#fff8e1">
+      <h2 style="color:#e65100">需要开启无痕模式权限</h2>
+      <ol style="font-size:12px;color:#5f6368;line-height:2;padding-left:16px;margin:8px 0">
+        <li>打开 <code style="background:#f1f3f4;padding:1px 4px;border-radius:3px">chrome://extensions</code></li>
+        <li>找到「GoodLink 夸克 Cookie 抓取器」</li>
+        <li>点击「详细信息」</li>
+        <li>开启「允许在无痕模式下运行」</li>
+      </ol>
+      <button id="btn-recheck" class="btn btn-secondary" style="margin-top:4px">重新检测</button>
+    </div>
+  </div>
+
+  <!-- 空闲 -->
+  <div id="view-idle">
+    <div class="card">
+      <h2>导出设置</h2>
+      <div class="setting-row">
+        <label>保存路径</label>
+        <input id="export-path" placeholder="GoodLink_quark_cookies" />
+      </div>
+    </div>
+    <div class="card">
+      <h2>操作</h2>
+      <ol style="font-size:12px;color:#5f6368;line-height:2;padding-left:16px;margin-bottom:12px">
+        <li>打开无痕窗口，进入夸克网盘</li>
+        <li>在页面上<strong>登录</strong>（手机号/扫码）</li>
+        <li>登录成功后扩展会<strong>自动刷新</strong>完整 Cookie</li>
+        <li>回到夸克页面右下角 GoodLink 面板获取直链并发送 Motrix</li>
+        <li>这里仍可导出 JSON，方便备份或多账号管理</li>
+      </ol>
+      <button id="btn-start" class="btn btn-primary">开始抓取</button>
+    </div>
+    <div class="card">
+      <h2>快捷操作</h2>
+      <p style="font-size:11px;color:#80868b;margin-bottom:8px">如果已经登录了夸克网盘，可以直接抓取当前页面的 Cookie</p>
+      <button id="btn-grab-now" class="btn btn-secondary">立即抓取当前标签页</button>
+    </div>
+  </div>
+
+  <!-- 抓取中 -->
+  <div id="view-capturing" style="display:none">
+    <div class="card">
+      <div class="status">
+        <div class="spinner"></div>
+        <div class="status-text">请在无痕窗口中登录夸克网盘<br>登录成功后自动抓取全部 Cookie</div>
+      </div>
+      <button id="btn-grab-while" class="btn btn-secondary">确认已登录，立即抓取</button>
+    </div>
+  </div>
+
+  <!-- 完成 -->
+  <div id="view-done" style="display:none">
+    <div class="card">
+      <h2>捕获结果</h2>
+      <div id="result-content"></div>
+    </div>
+    <div class="card">
+      <h2>关键 Cookie 预览</h2>
+      <div id="cookie-preview" class="cookie-detail" style="display:none"></div>
+      <p id="cookie-preview-empty" style="font-size:11px;color:#80868b">无预览</p>
+    </div>
+    <button id="btn-copy-all" class="btn btn-secondary">复制完整 Cookie 字符串</button>
+    <button id="btn-reset" class="btn btn-secondary">继续抓取新账号</button>
+  </div>
+
+  <!-- 历史 -->
+  <div id="history-section" style="display:none">
+    <div class="card">
+      <h2>已抓取 <span class="badge" id="history-count">0</span></h2>
+      <div id="history-list"></div>
+    </div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

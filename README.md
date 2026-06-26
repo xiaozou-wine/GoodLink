@@ -1,6 +1,24 @@
-# GoodLink 百度直链助手
+# GoodLink 直链助手
 
-百度网盘直链获取工具集，包含油猴脚本和 Chrome 扩展。
+GoodLink 是一个网盘直链获取工具，目前包含夸克网盘 Chrome 扩展和百度网盘油猴脚本。
+
+## 夸克网盘直链助手使用方式
+
+1. 下载 `release/GoodLink-Quark-DirectLink-v2.0.0.zip` 并解压
+2. 打开 Chrome，地址栏输入 `chrome://extensions`
+3. 右上角开启 **开发者模式**
+4. 点击 **加载已解压的扩展程序**，选择解压后的 `GoodLink-Quark-DirectLink` 文件夹
+
+### 更改 RPC 配置
+
+![RPC 配置](images/RPC.png)
+
+### 获取直链并下载
+
+![获取直链](images/获取直链.png)
+
+1. 先点击 **获取直链**
+2. 点击 **发送到 Motrix**。使用前请确认 Motrix 已打开，并且 RPC 已开启。
 
 ### 现在在努力肝夸克的
 
